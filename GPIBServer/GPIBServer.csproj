@@ -5,4 +5,10 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="L" Version="5.0.0" />
+    <PackageReference Include="NamedPipeWrapper.NetCore" Version="1.0.0" />
+    <PackageReference Include="SerialPortStream" Version="2.3.1" />
+  </ItemGroup>
+
 </Project>
