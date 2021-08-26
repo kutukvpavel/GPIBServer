@@ -16,9 +16,9 @@ namespace GPIBServer
         public object Data { get; }
     }
 
-    public class GpibResponseEventArgs : EventArgs
+    public class GpibResponseEventArgs : GpibCommandEventArgs
     {
-        public GpibResponseEventArgs(string response)
+        public GpibResponseEventArgs(GpibCommand cmd, GpibInstrument instrument, string response) : base(cmd, instrument)
         {
             Response = response;
         }
@@ -28,11 +28,13 @@ namespace GPIBServer
 
     public class GpibCommandEventArgs : EventArgs
     {
-        public GpibCommandEventArgs(GpibCommand cmd)
+        public GpibCommandEventArgs(GpibCommand cmd, GpibInstrument instrument)
         {
             Command = cmd;
+            Instrument = instrument;
         }
 
         public GpibCommand Command { get; }
+        public GpibInstrument Instrument { get; }
     }
 }

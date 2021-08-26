@@ -7,10 +7,12 @@ using System.Text;
 
 namespace GPIBServer
 {
-    public class GpibController : ErrorReporterBase, IDisposable
+    public class GpibController : CommandSetBase, IDisposable
     {
         public event EventHandler<GpibResponseEventArgs> ResponseReceived;
         public event EventHandler<GpibCommandEventArgs> CommandTimeout;
+
+        public static int ControllerPollInterval { get; set; }
 
         public GpibController()
         {
@@ -24,24 +26,27 @@ namespace GPIBServer
 
         public string Name { get; set; }
         public string EndOfReceive { get; set; }
-        public GpibCommand[] CommandSet { get; set; }
+        public string AddressSelectCommandName { get; set; }
+        public string AddressQueryCommandName { get; set; }
+        public GpibInstrument[] InstrumentSet { get; set; }
+        public SerialPortConfiguration PortConfiguration { get; set; }
 
         [JsonIgnore]
         public SerialPortStream SerialPort { get; private set; }
         [JsonIgnore]
         public GpibCommand LastCommand { get; private set; }
         [JsonIgnore]
-        public string LastResponse { get; private set; }
+        public GpibInstrument LastInstrument { get; private set; }
         [JsonIgnore]
         public object SynchronizingObject { get; }
         [JsonIgnore]
-        public bool IsBusy { get; private set; }
+        public bool IsBusy { get => _ResponseTimer.Enabled; }
 
         #endregion
 
         #region Public Methods
 
-        public bool Connect(SerialPortConfiguration config)
+        public bool Connect()
         {
             try
             {
@@ -55,7 +60,9 @@ namespace GPIBServer
                     SerialPort.DataReceived -= SerialPort_DataReceived;
                     SerialPort.ErrorReceived -= SerialPort_ErrorReceived;
                 }
-                SerialPort = new SerialPortStream(config.Name, config.BaudRate, config.DataBits, config.Parity, config.StopBits);
+                SerialPort = new SerialPortStream(PortConfiguration.Name,
+                    PortConfiguration.BaudRate, PortConfiguration.DataBits, 
+                    PortConfiguration.Parity, PortConfiguration.StopBits);
                 SerialPort.ErrorReceived += SerialPort_ErrorReceived;
                 SerialPort.DataReceived += SerialPort_DataReceived;
                 SerialPort.Open();
@@ -74,12 +81,13 @@ namespace GPIBServer
             {
                 if (IsBusy) return false;
                 if (!(SerialPort?.IsOpen ?? false)) throw new InvalidOperationException("Port is closed.");
-                IsBusy = true;
-                LastResponse = null;
-                _ResponseTimer.Interval = cmd.TimeoutMilliseconds;
-                LastCommand = cmd;
-                SerialPort.Write(cmd.CommandString);
-                if (cmd.AwaitResponse) _ResponseTimer.Start();
+                lock (SynchronizingObject)
+                {
+                    _ResponseTimer.Interval = cmd.TimeoutMilliseconds;
+                    LastCommand = cmd;
+                    SerialPort.Write(cmd.CommandString);
+                    if (cmd.AwaitResponse) _ResponseTimer.Start();
+                }
                 return true;
             }
             catch (Exception ex)
@@ -131,24 +139,20 @@ namespace GPIBServer
             {
                 if (e.EventType == SerialData.NoData) return;
                 if (SerialPort.BytesToRead == 0) return;
-                bool invoke = false;
                 lock (SynchronizingObject)
                 {
                     string newData = SerialPort.ReadExisting();
                     _ResponseBuilder.Append(newData);
-                    invoke = newData.EndsWith(EndOfReceive);
-                    if (invoke)
+                    if (newData.EndsWith(EndOfReceive))
                     {
-                        LastResponse = _ResponseBuilder.ToString()
+                        _ResponseTimer.Stop();
+                        string resp = _ResponseBuilder.ToString()
                             .Remove(_ResponseBuilder.Length - EndOfReceive.Length, EndOfReceive.Length);
                         _ResponseBuilder.Clear();
-                        LastResponse = ParseResponse(LastResponse);
+                        resp = ParseResponse(resp);
+                        ResponseReceived?.BeginInvoke(this, 
+                            new GpibResponseEventArgs(LastCommand, LastInstrument, resp), null, null);
                     }
-                }
-                if (invoke)
-                {
-                    ResponseReceived?.Invoke(this, new GpibResponseEventArgs(LastResponse));
-                    IsBusy = false;
                 }
             }
             catch (Exception ex)
@@ -170,13 +174,12 @@ namespace GPIBServer
             {
                 DiscardBuffers();
                 _ResponseBuilder.Clear();
-                LastResponse = null;
             }
         }
 
         private void ResponseTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            CommandTimeout?.Invoke(this, new GpibCommandEventArgs(LastCommand));
+            CommandTimeout?.Invoke(this, new GpibCommandEventArgs(LastCommand, LastInstrument));
             ClearResponseBuffer();
         }
 

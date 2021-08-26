@@ -13,53 +13,46 @@ namespace GPIBServer
         public Configuration(bool init)
         {
             if (!init) return;
-            PortConfiguration = new SerialPortConfiguration();
             ScriptsFolder = @"..\scripts";
             ScriptsFilter = "*.json";
-            OutputFilePath = @"..\output\{0:yyyy-MM-dd_HH-mm-ss}.txt";
+            OutputFilePath = @"..\output\{{0}}{0:yyyy-MM-dd_HH-mm-ss}.txt";
             InstrumentsFolder = @"..\instruments";
             InstrumentsFilter = "*.json";
             ControllersFolder = @"..\controllers";
             ControllersFilter = "*.json";
             ScriptName = "ExampleScript";
-            ScriptControllerNameSeparator = ".";
+            ScriptDevicePathDelimeter = ".";
+            ControllerPollInterval = 10;
+            DelayCommandPrefix = "delay=";
+            OutputLineFormat = "{0} | {1} | {2}";
         }
 
-        public SerialPortConfiguration PortConfiguration { get; set; }
-
-        public string ScriptControllerNameSeparator { get; set; }
-
-        public string ScriptName { get; set; }
-
         public string ScriptsFilter { get; set; }
-
         public string ScriptsFolder { get; set; }
-
         public string OutputFilePath { get; set; }
-
         public string InstrumentsFolder { get; set; }
-
         public string InstrumentsFilter { get; set; }
-
         public string ControllersFolder { get; set; }
-
         public string ControllersFilter { get; set; }
+        public string ScriptName { get; set; }
+        public string ScriptDevicePathDelimeter { get; set; }
+        public int ControllerPollInterval { get; set; } //mS
+        public string DelayCommandPrefix { get; set; }
+        public string OutputLineFormat { get; set; }
+        public bool SeparateOutputPerDevice { get; set; }
 
         public string GetFullyQualifiedOutputPath()
         {
             return GetFullyQualifiedPath(string.Format(OutputFilePath, DateTime.Now));
         }
-
         public IEnumerable<string> GetScriptFiles()
         {
             return Directory.EnumerateFiles(GetFullyQualifiedPath(ScriptsFolder), ScriptsFilter);
         }
-
         public IEnumerable<string> GetInstrumentFiles()
         {
             return Directory.EnumerateFiles(GetFullyQualifiedPath(InstrumentsFolder), InstrumentsFilter);
         }
-
         public IEnumerable<string> GetControllerFiles()
         {
             return Directory.EnumerateFiles(GetFullyQualifiedPath(ControllersFolder), ControllersFilter);

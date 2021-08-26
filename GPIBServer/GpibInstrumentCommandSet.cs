@@ -1,17 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Text.Json.Serialization;
-using System.Linq;
 
 namespace GPIBServer
 {
-    public class GpibInstrument
+    public class GpibInstrumentCommandSet : CommandSetBase
     {
+        public GpibInstrumentCommandSet()
+        { }
+
         #region Properties
 
-        public string CommandSetName { get; set; }
-        public int Address { get; set; }
         public string Name { get; set; }
 
         #endregion

@@ -8,6 +8,16 @@ namespace GPIBServer
     {
         public GpibCommand()
         { }
+        public GpibCommand(GpibCommand existing)
+        {
+            Name = existing.Name;
+            CommandString = existing.CommandString;
+            AwaitResponse = existing.AwaitResponse;
+            TimeoutMilliseconds = existing.TimeoutMilliseconds;
+            ResponsePrefixLength = existing.ResponsePrefixLength;
+            ExpectedResponse = existing.ExpectedResponse;
+            OutputResponse = existing.OutputResponse;
+        }
 
         public string Name { get; set; }
         public string CommandString { get; set; }
@@ -15,5 +25,6 @@ namespace GPIBServer
         public int TimeoutMilliseconds { get; set; }
         public int ResponsePrefixLength { get; set; }
         public string ExpectedResponse { get; set; }
+        public bool OutputResponse { get; set; }
     }
 }
