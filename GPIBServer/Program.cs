@@ -48,6 +48,12 @@ namespace GPIBServer
                 GpibScript.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
                 GpibScript.DelayCommandPrefix = Configuration.Instance.DelayCommandPrefix;
                 GpibController.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
+                Output.Separation = Configuration.Instance.OutputSeparation;
+                Output.Path = Configuration.Instance.GetFullyQualifiedOutputPath();
+                Output.LineFormat = Configuration.Instance.OutputLineFormat;
+                Output.SeparationLabelFormat = Configuration.Instance.OutputSeparationLabelFormat;
+                Output.Retries = Configuration.Instance.OutputRetries;
+                Output.RetryDelayMilliseconds = Configuration.Instance.OutputRetryDelayMilliseconds;
             }
             catch (Exception ex)
             {
@@ -74,15 +80,20 @@ namespace GPIBServer
             //Initialize objects
             try
             {
+                Output.ErrorOccurred += ErrorMessageSink;
+                Script.ErrorOccured += ErrorMessageSink;
+                Serializer.ErrorOccured += ErrorMessageSink;
                 foreach (var item in Instruments)
                 {
                     item.Value.InitializeCommandSet();
+                    item.Value.ErrorOccured += ErrorMessageSink;
                 }
                 foreach (var item in Controllers)
                 {
+                    item.Value.Initialize();
                     item.Value.InitializeCommandSet();
+                    item.Value.ErrorOccured += ErrorMessageSink;
                 }
-                Output.Initialize(Configuration.Instance.GetFullyQualifiedOutputPath(), Configuration.Instance.OutputLineFormat);
             }
             catch (Exception ex)
             {
@@ -100,6 +111,11 @@ namespace GPIBServer
                 return ExitCodes.FailedToExecuteScript;
             }
             return ExitCodes.OK;
+        }
+
+        private static void ErrorMessageSink(object sender, ExceptionEventArgs e)
+        {
+            Logger.Write(sender, e);
         }
     }
 }

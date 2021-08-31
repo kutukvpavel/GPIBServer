@@ -26,5 +26,18 @@ namespace GPIBServer
         public int ResponsePrefixLength { get; set; }
         public string ExpectedResponse { get; set; }
         public bool OutputResponse { get; set; }
+
+        public GpibCommand PutInParameters(params object[] p)
+        {
+            return PutInParameters(p, p);
+        }
+
+        public GpibCommand PutInParamters(object[] pCmd, object[] pResp)
+        {
+            var b = new GpibCommand(this);
+            b.CommandString = string.Format(b.CommandString, pCmd);
+            b.ExpectedResponse = string.Format(b.ExpectedResponse, pResp);
+            return b;
+        }
     }
 }

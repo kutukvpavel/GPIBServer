@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using RJCP.IO.Ports;
 using System.Timers;
 using System.Text;
+using System.Linq;
 
 namespace GPIBServer
 {
@@ -32,6 +33,8 @@ namespace GPIBServer
         public SerialPortConfiguration PortConfiguration { get; set; }
 
         [JsonIgnore]
+        public string LastResponse { get; private set; }
+        [JsonIgnore]
         public SerialPortStream SerialPort { get; private set; }
         [JsonIgnore]
         public GpibCommand LastCommand { get; private set; }
@@ -45,6 +48,16 @@ namespace GPIBServer
         #endregion
 
         #region Public Methods
+
+        public void Initialize()
+        {
+            _Instruments = InstrumentSet.ToDictionary(x => x.Name);
+        }
+
+        public GpibInstrument GetInstrument(string name)
+        {
+            return _Instruments[name];
+        }
 
         public bool Connect()
         {
@@ -79,13 +92,14 @@ namespace GPIBServer
         {
             try
             {
-                if (IsBusy) return false;
-                if (!(SerialPort?.IsOpen ?? false)) throw new InvalidOperationException("Port is closed.");
+                if (SendReturnHelper()) return false;
                 lock (SynchronizingObject)
                 {
                     _ResponseTimer.Interval = cmd.TimeoutMilliseconds;
                     LastCommand = cmd;
+                    LastResponse = null;
                     SerialPort.Write(cmd.CommandString);
+                    if (cmd.CommandString.Length * 2 < SerialPort.WriteBufferSize) SerialPort.Flush();
                     if (cmd.AwaitResponse) _ResponseTimer.Start();
                 }
                 return true;
@@ -93,6 +107,31 @@ namespace GPIBServer
             catch (Exception ex)
             {
                 RaiseError(ex, cmd.CommandString);
+                return false;
+            }
+        }
+
+        public bool SelectInstrument(GpibInstrument instrument)
+        {
+            try
+            {
+                if (SendReturnHelper()) return false;
+                if (LastInstrument.Address == instrument.Address) return true;
+                string addr = instrument.Address.ToString();
+                var selCmd = this[AddressSelectCommandName].PutInParameters(addr);
+                if (!Send(selCmd)) return false;
+                Wait();
+                if ((AddressQueryCommandName?.Length ?? 0) > 0)
+                {
+                    selCmd = this[AddressQueryCommandName].PutInParameters(addr);
+                    if (!Send(selCmd)) return false;
+                    Wait();
+                }
+                return LastCommand.ExpectedResponse == null || LastResponse == LastCommand.ExpectedResponse;
+            }
+            catch (Exception ex)
+            {
+                RaiseError(ex, instrument.Name);
                 return false;
             }
         }
@@ -107,12 +146,25 @@ namespace GPIBServer
             }
         }
 
+        public void Wait()
+        {
+            while (IsBusy) System.Threading.Thread.Sleep(ControllerPollInterval);
+        }
+
         #endregion
 
         #region Private
 
         private readonly Timer _ResponseTimer;
         private readonly StringBuilder _ResponseBuilder;
+        private Dictionary<string, GpibInstrument> _Instruments;
+
+        private bool SendReturnHelper()
+        {
+            if (IsBusy) return true;
+            if (!(SerialPort?.IsOpen ?? false)) throw new InvalidOperationException("Port is closed.");
+            return false;
+        }
 
         private void DiscardBuffers()
         {
@@ -150,6 +202,7 @@ namespace GPIBServer
                             .Remove(_ResponseBuilder.Length - EndOfReceive.Length, EndOfReceive.Length);
                         _ResponseBuilder.Clear();
                         resp = ParseResponse(resp);
+                        LastResponse = resp;                                        //TODO: RECHECK!!
                         ResponseReceived?.BeginInvoke(this, 
                             new GpibResponseEventArgs(LastCommand, LastInstrument, resp), null, null);
                     }

@@ -6,7 +6,7 @@ using System.IO;
 
 namespace GPIBServer
 {
-    public static class Logger
+    public static class Logger //TODO: rewrite using a blocking queue
     {
         static Logger()
         {
@@ -27,6 +27,7 @@ namespace GPIBServer
 
         private readonly static L _Instance = new L();
         private readonly static TextWriter _TerminalStream;
+        
 
         public static void Fatal(Exception ex)
         {

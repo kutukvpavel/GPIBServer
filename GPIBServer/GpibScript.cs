@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace GPIBServer
 {
-    public class GpibScript : ErrorReporterBase
+    public class GpibScript : ErrorReporterBase //TODO: rewrite using a separate execution thread for each controller
     {
         #region Static
 
@@ -25,9 +25,6 @@ namespace GPIBServer
         public int LoopIndex { get; set; }
         public int LoopCount { get; set; }
         public int DefaultCommandInterval { get; set; }
-
-        [JsonIgnore]
-        public GpibInstrument LastInstrument { get; set; }
 
         #endregion
 
@@ -50,14 +47,7 @@ namespace GPIBServer
                         }
                         else
                         {
-                            var cmd = GetCommand(item, controllers, instruments, out GpibController ctrl);
-                            int retry = TimeoutRetry;
-                            while (retry-- > 0)
-                            {
-                                if (!ctrl.Send(cmd)) continue;
-                                while (ctrl.IsBusy) System.Threading.Thread.Sleep(10);
-
-                            }
+                            if (ExecuteCommand(item, controllers, instruments)) break;
                         }
                     }
                     catch (Exception ex) when (ex is NullReferenceException || ex is KeyNotFoundException)
@@ -74,25 +64,52 @@ namespace GPIBServer
 
         #region Private
 
-        private GpibCommand GetCommand(string s,
+        private bool ExecuteCommand(string item, 
+            Dictionary<string, GpibController> controllers, Dictionary<string, GpibInstrumentCommandSet> instruments)
+        {
+            var res = ParseCommand(item, controllers, instruments, 
+                out GpibController ctrl, out GpibInstrument instr, out GpibCommand cmd);
+            if (res == null) return true;
+            int retry = TimeoutRetry;
+            while (retry-- > 0)
+            {
+                if (res.Value)
+                {
+                    if (!ctrl.SelectInstrument(instr)) continue;
+                    ctrl.Wait();
+                }
+                if (!ctrl.Send(cmd)) continue;
+                ctrl.Wait();
+            }
+            return false;
+        }
+
+        private bool? ParseCommand(string s,
             Dictionary<string, GpibController> controllers, 
             Dictionary<string, GpibInstrumentCommandSet> instruments, 
-            out GpibController c)
+            out GpibController ctrl, out GpibInstrument instr, out GpibCommand cmd)
         {
-            c = null;
             string[] split = s.Split(DevicePathDelimeter);
-            if (split.Length < 2) return null;
-            c = controllers[split[0]];
-            GpibCommand res;
+            if (split.Length < 2)
+            {
+                ctrl = null;
+                instr = null;
+                cmd = null;
+                return null;
+            };
+            ctrl = controllers[split[0]];
             if (split.Length > 2)
             {
-                res = instruments[split[1]][split[2]];
+                instr = ctrl.GetInstrument(split[1]);
+                cmd = instruments[instr.CommandSetName][split[2]];
+                return true;
             }
             else
             {
-                res = c[split[1]];
+                instr = null;
+                cmd = ctrl[split[1]];
+                return false;
             }
-            return res;
         }
 
         #endregion

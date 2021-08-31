@@ -25,6 +25,10 @@ namespace GPIBServer
             ControllerPollInterval = 10;
             DelayCommandPrefix = "delay=";
             OutputLineFormat = "{0} | {1} | {2}";
+            OutputSeparation = OutputSeparation.None;
+            OutputSeparationLabelFormat = "{0}_";
+            OutputRetries = 3;
+            OutputRetryDelayMilliseconds = 300;
         }
 
         public string ScriptsFilter { get; set; }
@@ -39,7 +43,10 @@ namespace GPIBServer
         public int ControllerPollInterval { get; set; } //mS
         public string DelayCommandPrefix { get; set; }
         public string OutputLineFormat { get; set; }
-        public bool SeparateOutputPerDevice { get; set; }
+        public OutputSeparation OutputSeparation { get; set; }
+        public string OutputSeparationLabelFormat { get; set; }
+        public int OutputRetries { get; set; }
+        public int OutputRetryDelayMilliseconds { get; set; }
 
         public string GetFullyQualifiedOutputPath()
         {
