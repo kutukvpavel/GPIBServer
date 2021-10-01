@@ -1,10 +1,10 @@
-﻿using System;
+﻿using RJCP.IO.Ports;
+using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
-using RJCP.IO.Ports;
-using System.Timers;
-using System.Text;
 using System.Linq;
+using System.Text;
+using System.Text.Json.Serialization;
+using System.Timers;
 
 namespace GPIBServer
 {
@@ -25,12 +25,12 @@ namespace GPIBServer
 
         #region Properties
 
-        public string Name { get; set; }
-        public string EndOfReceive { get; set; }
-        public string AddressSelectCommandName { get; set; }
-        public string AddressQueryCommandName { get; set; }
+        public string Name { get; set; } = "Example";
+        public string EndOfReceive { get; set; } = "\r\n";
+        public string AddressSelectCommandName { get; set; } = "select";
+        public string AddressQueryCommandName { get; set; } = "query";
+        public SerialPortConfiguration PortConfiguration { get; set; } = new SerialPortConfiguration();
         public GpibInstrument[] InstrumentSet { get; set; }
-        public SerialPortConfiguration PortConfiguration { get; set; }
 
         [JsonIgnore]
         public string LastResponse { get; private set; }
@@ -83,7 +83,7 @@ namespace GPIBServer
             }
             catch (Exception ex)
             {
-                RaiseError(ex);
+                RaiseError(this, ex);
                 return false;
             }
         }
@@ -106,7 +106,7 @@ namespace GPIBServer
             }
             catch (Exception ex)
             {
-                RaiseError(ex, cmd.CommandString);
+                RaiseError(this, ex, cmd.CommandString);
                 return false;
             }
         }
@@ -131,7 +131,7 @@ namespace GPIBServer
             }
             catch (Exception ex)
             {
-                RaiseError(ex, instrument.Name);
+                RaiseError(this, ex, instrument.Name);
                 return false;
             }
         }
@@ -180,7 +180,7 @@ namespace GPIBServer
             }
             catch (Exception ex)
             {
-                RaiseError(ex, resp);
+                RaiseError(this, ex, resp);
                 return null;
             }
         }
@@ -210,7 +210,7 @@ namespace GPIBServer
             }
             catch (Exception ex)
             {
-                RaiseError(ex);
+                RaiseError(this, ex);
             }
         }
 
@@ -218,7 +218,7 @@ namespace GPIBServer
         {
             if (e.EventType == SerialError.NoError) return;
             ClearResponseBuffer();
-            RaiseError(new Exception("Serial port error."), Enum.GetName(typeof(SerialError), e.EventType));
+            RaiseError(this, new Exception("Serial port error."), Enum.GetName(typeof(SerialError), e.EventType));
         }
 
         private void ClearResponseBuffer()

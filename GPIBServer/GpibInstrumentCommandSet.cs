@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace GPIBServer
+﻿namespace GPIBServer
 {
     public class GpibInstrumentCommandSet : CommandSetBase
     {
@@ -11,7 +7,7 @@ namespace GPIBServer
 
         #region Properties
 
-        public string Name { get; set; }
+        public string Name { get; set; } = "ExampleSet";
 
         #endregion
     }

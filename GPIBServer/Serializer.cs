@@ -11,14 +11,15 @@ namespace GPIBServer
         public static JsonSerializerOptions Options { get; set; } =
             new JsonSerializerOptions()
             {
-                WriteIndented = true
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
 
         public static void Serialize<T>(T obj, string path)
         {
             try
             {
-                JsonSerializer.Serialize(obj, typeof(T), Options);
+                File.WriteAllText(path, JsonSerializer.Serialize(obj, typeof(T), Options));
             }
             catch (Exception ex)
             {

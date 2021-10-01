@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace GPIBServer
+﻿namespace GPIBServer
 {
     public class GpibCommand
     {
@@ -19,13 +15,13 @@ namespace GPIBServer
             OutputResponse = existing.OutputResponse;
         }
 
-        public string Name { get; set; }
-        public string CommandString { get; set; }
-        public bool AwaitResponse { get; set; }
-        public int TimeoutMilliseconds { get; set; }
-        public int ResponsePrefixLength { get; set; }
+        public string Name { get; set; } = "ExampleCmd";
+        public string CommandString { get; set; } = "++ver";
+        public bool AwaitResponse { get; set; } = false;
+        public int TimeoutMilliseconds { get; set; } = 3000;
+        public int ResponsePrefixLength { get; set; } = 0;
         public string ExpectedResponse { get; set; }
-        public bool OutputResponse { get; set; }
+        public bool OutputResponse { get; set; } = false;
 
         public GpibCommand PutInParameters(params object[] p)
         {

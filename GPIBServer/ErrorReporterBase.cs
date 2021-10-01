@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace GPIBServer
 {
@@ -8,9 +6,13 @@ namespace GPIBServer
     {
         public event EventHandler<ExceptionEventArgs> ErrorOccured;
 
-        protected void RaiseError(Exception ex, object data = null)
+        protected void RaiseError(object sender, ExceptionEventArgs e)
         {
-            ErrorOccured?.Invoke(this, new ExceptionEventArgs(ex, data));
+            ErrorOccured?.Invoke(sender, e);
+        }
+        protected void RaiseError(object sender, Exception ex, object data = null)
+        {
+            RaiseError(sender, new ExceptionEventArgs(ex, data));
         }
     }
 }

@@ -3,6 +3,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Authors>Kutukov Pavel</Authors>
+    <Company>MDC</Company>
   </PropertyGroup>
 
   <ItemGroup>

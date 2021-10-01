@@ -1,7 +1,9 @@
 ﻿using System;
-using System.Reflection;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Threading;
 
 namespace GPIBServer
 {
@@ -14,27 +16,60 @@ namespace GPIBServer
             FailedToLoadConfiguration,
             FailedToDeserializeObjects,
             FailedToInitializeObjects,
-            FailedToExecuteScript
+            FailedToExecuteScript,
+            FailedToSaveConfiguration,
+            Canceled
         }
 
         public static Dictionary<string, GpibController> Controllers { get; private set; }
         public static Dictionary<string, GpibInstrumentCommandSet> Instruments { get; private set; }
         public static GpibScript Script { get; private set; }
+        public static CancellationTokenSource Cancel { get; private set; } = new CancellationTokenSource();
 
         private static int Main(string[] args)
         {
+            Console.CancelKeyPress += Console_CancelKeyPress;
             try
             {
                 string name = Assembly.GetExecutingAssembly().GetName().ToString();
-                Console.WriteLine(name);
                 Logger.Write(name);
-                return (int)MainHelper(args);
+                ExitCodes ret = (args.Length > 0 && args[0] == "-g") ? GenerateExampleJson() : MainHelper(args);
+                try
+                {
+                    if (ret == ExitCodes.OK) Configuration.SaveConfiguration(Configuration.Instance);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Fatal(ex);
+                    ret = ExitCodes.FailedToSaveConfiguration;
+                }
+                return (int)ret;
             }
             catch (Exception ex)
             {
                 Logger.Fatal(ex);
                 return (int)ExitCodes.FatalInternalError;
             }
+        }
+
+        private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        {
+            if (!Cancel.IsCancellationRequested) Cancel.Cancel();
+            e.Cancel = true;
+        }
+
+        private static ExitCodes GenerateExampleJson()
+        {
+            var ctrl = new GpibController() 
+            { 
+                CommandSet = new GpibCommand[] { new GpibCommand() },
+                InstrumentSet = new GpibInstrument[] { new GpibInstrument() }
+            };
+            var ics = new GpibInstrumentCommandSet() { CommandSet = ctrl.CommandSet };
+            string p = Path.Combine(Environment.CurrentDirectory, "example_{0}.json");
+            Serializer.Serialize(ctrl, string.Format(p, "controller"));
+            Serializer.Serialize(ics, string.Format(p, "instrument"));
+            return ExitCodes.OK;
         }
 
         private static ExitCodes MainHelper(string[] args)
@@ -44,9 +79,9 @@ namespace GPIBServer
             {
                 Configuration.LoadConfiguration();
                 if (args.Length > 0 && args[0].Length > 0) Configuration.Instance.ScriptName = args[0];
-                GpibScript.DevicePathDelimeter = Configuration.Instance.ScriptDevicePathDelimeter;
-                GpibScript.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
-                GpibScript.DelayCommandPrefix = Configuration.Instance.DelayCommandPrefix;
+                GpibThread.DevicePathDelimeter = Configuration.Instance.ScriptDevicePathDelimeter;
+                GpibThread.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
+                GpibThread.DelayCommandPrefix = Configuration.Instance.DelayCommandPrefix;
                 GpibController.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
                 Output.Separation = Configuration.Instance.OutputSeparation;
                 Output.Path = Configuration.Instance.GetFullyQualifiedOutputPath();
@@ -103,7 +138,8 @@ namespace GPIBServer
             //Execute script
             try
             {
-                if (!Script.Execute(Controllers, Instruments)) return ExitCodes.FailedToExecuteScript;
+                if (!Script.Execute(Controllers, Instruments, Cancel.Token))
+                    return Cancel.IsCancellationRequested ? ExitCodes.Canceled : ExitCodes.FailedToExecuteScript;
             }
             catch (Exception ex)
             {

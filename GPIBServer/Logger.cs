@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using LLibrary;
+﻿using LLibrary;
+using System;
 using System.IO;
 
 namespace GPIBServer

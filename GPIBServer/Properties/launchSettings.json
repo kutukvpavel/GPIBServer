@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "GPIBServer": {
+      "commandName": "Project"
+    }
+  }
+}
