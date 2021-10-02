@@ -35,6 +35,11 @@ namespace GPIBServer
 
         #region Public Methods
 
+        public bool ValidateNames()
+        {
+            return Threads.Select(x => x.Name).Distinct().Count() == Threads.Length;
+        }
+
         public bool Execute(Dictionary<string, GpibController> controllers, Dictionary<string, GpibInstrumentCommandSet> instruments,
             CancellationToken cancel)
         {

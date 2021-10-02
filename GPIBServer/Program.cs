@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RJCP.IO.Ports;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,7 +20,8 @@ namespace GPIBServer
             FailedToConnectToControllers,
             FailedToExecuteScript,
             FailedToSaveConfiguration,
-            Canceled
+            Canceled,
+            InvalidScript
         }
 
         public static Dictionary<string, GpibController> Controllers { get; private set; }
@@ -50,6 +52,10 @@ namespace GPIBServer
             {
                 Logger.Fatal(ex);
                 return (int)ExitCodes.FatalInternalError;
+            }
+            finally
+            {
+                if (!Cancel.IsCancellationRequested) Cancel.Cancel();
             }
         }
 
@@ -118,7 +124,14 @@ namespace GPIBServer
             //Initialize objects
             try
             {
+                Logger.InitializeTerminal(Cancel.Token);
+                if (!Script.ValidateNames())
+                {
+                    Logger.Write("Invalid script (probably duplicate thread names).");
+                    return ExitCodes.InvalidScript;
+                }
                 Output.ErrorOccurred += ErrorMessageSink;
+                Output.Initialize(Cancel.Token);
                 Script.ErrorOccured += ErrorMessageSink;
                 Serializer.ErrorOccured += ErrorMessageSink;
                 foreach (var item in Instruments)
@@ -131,6 +144,8 @@ namespace GPIBServer
                     item.Value.Initialize();
                     item.Value.InitializeCommandSet();
                     item.Value.ErrorOccured += ErrorMessageSink;
+                    item.Value.ResponseReceived += Output.QueueForWrite;
+                    //item.Value.LogTerminal += Logger.Terminal;
                 }
             }
             catch (Exception ex)

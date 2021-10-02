@@ -12,6 +12,7 @@ namespace GPIBServer
     {
         public event EventHandler<GpibResponseEventArgs> ResponseReceived;
         public event EventHandler<GpibCommandEventArgs> CommandTimeout;
+        public event EventHandler<string> LogTerminal;
 
         public static int ControllerPollInterval { get; set; }
 
@@ -94,15 +95,17 @@ namespace GPIBServer
             try
             {
                 if (SendReturnHelper()) return false;
+                string c = cmd.CommandString + EndOfSend;
                 lock (SynchronizingObject)
                 {
                     _ResponseTimer.Interval = cmd.TimeoutMilliseconds;
                     LastCommand = cmd;
                     LastResponse = null;
-                    SerialPort.Write(cmd.CommandString + EndOfSend);
+                    SerialPort.Write(c);
                     if (cmd.CommandString.Length * 2 < SerialPort.WriteBufferSize) SerialPort.Flush();
                     if (cmd.AwaitResponse) _ResponseTimer.Start();
                 }
+                LogTerminal?.BeginInvoke(this, c, null, null);
                 return true;
             }
             catch (Exception ex)
@@ -203,6 +206,7 @@ namespace GPIBServer
                 lock (SynchronizingObject)
                 {
                     string newData = SerialPort.ReadExisting();
+                    LogTerminal?.BeginInvoke(this, newData, null, null);
                     _ResponseBuilder.Append(newData);
                     if (newData.EndsWith(EndOfReceive))
                     {
