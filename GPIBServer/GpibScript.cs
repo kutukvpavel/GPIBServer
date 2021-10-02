@@ -9,17 +9,31 @@ namespace GPIBServer
 {
     public class GpibScript : ErrorReporterBase
     {
+        #region Static
+
+        public static string DevicePathDelimeter { get; set; }
+        public static int ControllerPollInterval { get; set; }
+        public static string DelayCommandPrefix { get; set; }
+
+        #endregion
+
         public GpibScript()
         { }
 
-        public GpibThread[] Threads { get; set; }
 
-        public string Name { get; set; }
+        #region Properties
+
+        public string Name { get; set; } = "ExampleScript";
 
         public bool TerminateAllThreadsOnError { get; set; } = false;
+        public GpibThread[] Threads { get; set; }
 
         [JsonIgnore]
         public Task<bool>[] ExecutingTasks { get; private set; }
+
+        #endregion
+
+        #region Public Methods
 
         public bool Execute(Dictionary<string, GpibController> controllers, Dictionary<string, GpibInstrumentCommandSet> instruments,
             CancellationToken cancel)
@@ -32,8 +46,9 @@ namespace GPIBServer
             {
                 for (int i = 0; i < Threads.Length; i++)
                 {
-                    ExecutingTasks[i] = new Task<bool>(() => Threads[i].Execute(controllers, instruments), src.Token);
-                    Threads[i].ErrorOccured += (o, e) => RaiseError(o, e.Exception, $"{e.Data}, original thread = {Threads[i].Name}");
+                    var r = Threads[i];
+                    ExecutingTasks[i] = new Task<bool>(() => r.Execute(controllers, instruments), src.Token);
+                    r.ErrorOccured += (o, e) => RaiseError(o, e.Exception, $"{e.Data}, original thread = {r.Name}");
                 }
             }
             catch (Exception ex)
@@ -88,5 +103,18 @@ namespace GPIBServer
             }
             return true;
         }
+
+        public IEnumerable<string> GetRequiredControllerNames()
+        {
+            List<string> names = new List<string>();
+            foreach (var item in Threads)
+            {
+                names.AddRange(item.Commands.Select(x => x.Split(DevicePathDelimeter))
+                    .Where(x => x.Length > 1).Select(x => x[0]));
+            }
+            return names.Distinct();
+        }
+
+        #endregion
     }
 }

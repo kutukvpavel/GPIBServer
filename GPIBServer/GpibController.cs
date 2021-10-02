@@ -27,6 +27,7 @@ namespace GPIBServer
 
         public string Name { get; set; } = "Example";
         public string EndOfReceive { get; set; } = "\r\n";
+        public string EndOfSend { get; set; } = "\r\n";
         public string AddressSelectCommandName { get; set; } = "select";
         public string AddressQueryCommandName { get; set; } = "query";
         public SerialPortConfiguration PortConfiguration { get; set; } = new SerialPortConfiguration();
@@ -98,7 +99,7 @@ namespace GPIBServer
                     _ResponseTimer.Interval = cmd.TimeoutMilliseconds;
                     LastCommand = cmd;
                     LastResponse = null;
-                    SerialPort.Write(cmd.CommandString);
+                    SerialPort.Write(cmd.CommandString + EndOfSend);
                     if (cmd.CommandString.Length * 2 < SerialPort.WriteBufferSize) SerialPort.Flush();
                     if (cmd.AwaitResponse) _ResponseTimer.Start();
                 }
@@ -116,7 +117,7 @@ namespace GPIBServer
             try
             {
                 if (SendReturnHelper()) return false;
-                if (LastInstrument.Address == instrument.Address) return true;
+                if ((LastInstrument?.Address ?? -1) == instrument.Address) return true;
                 string addr = instrument.Address.ToString();
                 var selCmd = this[AddressSelectCommandName].PutInParameters(addr);
                 if (!Send(selCmd)) return false;
@@ -127,7 +128,15 @@ namespace GPIBServer
                     if (!Send(selCmd)) return false;
                     Wait();
                 }
-                return LastCommand.ExpectedResponse == null || LastResponse == LastCommand.ExpectedResponse;
+                if (LastCommand.ExpectedResponse == null || LastResponse == LastCommand.ExpectedResponse)
+                {
+                    LastInstrument = instrument;
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
             catch (Exception ex)
             {

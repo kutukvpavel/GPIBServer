@@ -5,14 +5,6 @@ namespace GPIBServer
 {
     public class GpibThread : ErrorReporterBase
     {
-        #region Static
-
-        public static string DevicePathDelimeter { get; set; }
-        public static int ControllerPollInterval { get; set; }
-        public static string DelayCommandPrefix { get; set; }
-
-        #endregion
-
         public GpibThread()
         { }
 
@@ -36,26 +28,29 @@ namespace GPIBServer
             bool initialized = false;
             while (loop < 0 || loop-- > 0)
             {
-                for (int i = initialized ? LoopIndex : 0; i < Commands.Length; i++)
+                int i;
+                for (i = initialized ? LoopIndex : 0; i < Commands.Length; i++)
                 {
                     string item = Commands[i];
                     try
                     {
-                        if (item.StartsWith(DelayCommandPrefix))
+                        if (item.StartsWith(GpibScript.DelayCommandPrefix))
                         {
-                            System.Threading.Thread.Sleep(int.Parse(item.Remove(0, DelayCommandPrefix.Length)));
+                            System.Threading.Thread.Sleep(int.Parse(item.Remove(0, GpibScript.DelayCommandPrefix.Length)));
                         }
                         else
                         {
-                            if (ExecuteCommand(item, controllers, instruments)) break;
+                            if (!ExecuteCommand(item, controllers, instruments)) break;
                         }
                     }
                     catch (Exception ex) when (ex is NullReferenceException || ex is KeyNotFoundException)
                     {
                         RaiseError(this, ex, item);
+                        return false;
                     }
                     System.Threading.Thread.Sleep(DefaultCommandInterval);
                 }
+                if (i != Commands.Length) return false;
                 initialized = true;
             }
             return true;
@@ -81,6 +76,7 @@ namespace GPIBServer
                 }
                 if (!ctrl.Send(cmd)) continue;
                 ctrl.Wait();
+                return true;
             }
             return false;
         }
@@ -90,7 +86,7 @@ namespace GPIBServer
             Dictionary<string, GpibInstrumentCommandSet> instruments, 
             out GpibController ctrl, out GpibInstrument instr, out GpibCommand cmd)
         {
-            string[] split = s.Split(DevicePathDelimeter);
+            string[] split = s.Split(GpibScript.DevicePathDelimeter);
             if (split.Length < 2)
             {
                 ctrl = null;

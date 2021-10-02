@@ -16,6 +16,7 @@ namespace GPIBServer
             FailedToLoadConfiguration,
             FailedToDeserializeObjects,
             FailedToInitializeObjects,
+            FailedToConnectToControllers,
             FailedToExecuteScript,
             FailedToSaveConfiguration,
             Canceled
@@ -66,9 +67,11 @@ namespace GPIBServer
                 InstrumentSet = new GpibInstrument[] { new GpibInstrument() }
             };
             var ics = new GpibInstrumentCommandSet() { CommandSet = ctrl.CommandSet };
+            var sc = new GpibScript() { Threads = new GpibThread[] { new GpibThread() } };
             string p = Path.Combine(Environment.CurrentDirectory, "example_{0}.json");
             Serializer.Serialize(ctrl, string.Format(p, "controller"));
             Serializer.Serialize(ics, string.Format(p, "instrument"));
+            Serializer.Serialize(sc, string.Format(p, "script"));
             return ExitCodes.OK;
         }
 
@@ -79,9 +82,9 @@ namespace GPIBServer
             {
                 Configuration.LoadConfiguration();
                 if (args.Length > 0 && args[0].Length > 0) Configuration.Instance.ScriptName = args[0];
-                GpibThread.DevicePathDelimeter = Configuration.Instance.ScriptDevicePathDelimeter;
-                GpibThread.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
-                GpibThread.DelayCommandPrefix = Configuration.Instance.DelayCommandPrefix;
+                GpibScript.DevicePathDelimeter = Configuration.Instance.ScriptDevicePathDelimeter;
+                GpibScript.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
+                GpibScript.DelayCommandPrefix = Configuration.Instance.DelayCommandPrefix;
                 GpibController.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
                 Output.Separation = Configuration.Instance.OutputSeparation;
                 Output.Path = Configuration.Instance.GetFullyQualifiedOutputPath();
@@ -134,6 +137,19 @@ namespace GPIBServer
             {
                 Logger.Fatal(ex);
                 return ExitCodes.FailedToInitializeObjects;
+            }
+            //Connect to required controllers
+            try
+            {
+                foreach (var item in Script.GetRequiredControllerNames())
+                {
+                    Controllers[item].Connect();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Fatal(ex);
+                return ExitCodes.FailedToConnectToControllers;
             }
             //Execute script
             try
