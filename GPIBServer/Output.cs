@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using NamedPipeWrapper;
 
 namespace GPIBServer
 {
@@ -58,17 +59,36 @@ namespace GPIBServer
             }
         }
 
-        public static void Initialize(string dataPath, string terminalPath, CancellationToken cancel)
+        public static void Initialize(string dataPath, string terminalPath, string pipeName, CancellationToken cancel)
         {
             _Cancel = cancel;
             TerminalLogPath = terminalPath;
             DataPath = dataPath;
+            _PipeQueue = new BlockingCollection<Tuple<object, GpibResponseEventArgs>>();
+            _Pipe = new NamedPipeServer<string>(pipeName);
+            _Pipe.Start();
+            _PipeThread = new Thread(() =>
+            {
+                try
+                {
+                    while (!cancel.IsCancellationRequested)
+                    {
+                        var d = _PipeQueue.Take(cancel);
+                        _Pipe.PushMessage(DataConverter(d.Item1, d.Item2));
+                    }
+                }
+                catch (OperationCanceledException)
+                { }
+            });
+            _PipeThread.Start();
         }
 
         public static void QueueData(object sender, GpibResponseEventArgs e)
         {
             if (!e.Command.OutputResponse) return;
             CheckInitialization();
+            var tuple = new Tuple<object, GpibResponseEventArgs>(sender, e);
+            _PipeQueue.Add(tuple);
             string p = Separation switch
             {
                 OutputSeparation.None => string.Empty,
@@ -86,7 +106,7 @@ namespace GPIBServer
                     _DataWriters.TryAdd(p, t);
                 }
             }
-            _DataWriters[p].Queue(new Tuple<object, GpibResponseEventArgs>(sender, e));
+            _DataWriters[p].Queue(tuple);
         }
 
         public static void QueueTerminal(object sender, string data)
@@ -119,8 +139,17 @@ namespace GPIBServer
             = new ConcurrentDictionary<string, DataWriterThread>();
         private static readonly ConcurrentDictionary<string, TerminalWriterThread> _TerminalWriters
             = new ConcurrentDictionary<string, TerminalWriterThread>();
+        private static NamedPipeServer<string> _Pipe;
+        private static Thread _PipeThread;
+        private static BlockingCollection<Tuple<object, GpibResponseEventArgs>> _PipeQueue;
 
         private static CancellationToken _Cancel;
+
+        private static string DataConverter(object s, GpibResponseEventArgs e)
+        {
+            return string.Format(LineFormat, e.TimeReceived,
+                    (s as GpibController).Name, e.Instrument.Name, e.Command.CommandString, e.Response);
+        }
 
         private static void CheckInitialization()
         {
@@ -134,9 +163,7 @@ namespace GPIBServer
 
             protected override string ConvertData(Tuple<object, GpibResponseEventArgs> data)
             {
-                return string.Format(LineFormat, data.Item2.TimeReceived,
-                    (data.Item1 as GpibController).Name, data.Item2.Instrument.Name, data.Item2.Command.CommandString,
-                    data.Item2.Response);
+                return DataConverter(data.Item1, data.Item2);
             }
         }
 

@@ -27,6 +27,7 @@ namespace GPIBServer
             OutputSeparationLabelFormat = "{0}_";
             OutputRetries = 3;
             OutputRetryDelayMilliseconds = 300;
+            PipeName = "GPIBServer_Broadcast_Pipe";
         }
 
         public string ScriptsFilter { get; set; }
@@ -45,6 +46,7 @@ namespace GPIBServer
         public string OutputSeparationLabelFormat { get; set; }
         public int OutputRetries { get; set; }
         public int OutputRetryDelayMilliseconds { get; set; }
+        public string PipeName { get; set; }
 
         public string GetFullyQualifiedLogPath()
         {

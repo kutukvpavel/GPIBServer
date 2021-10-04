@@ -140,6 +140,7 @@ namespace GPIBServer
                 Output.ErrorOccurred += ErrorMessageSink;
                 Output.Initialize(Configuration.Instance.GetFullyQualifiedOutputPath(),
                     Configuration.Instance.GetFullyQualifiedLogPath(),
+                    Configuration.Instance.PipeName,
                     Cancel.Token);
                 Script.ErrorOccured += ErrorMessageSink;
                 Serializer.ErrorOccured += ErrorMessageSink;
