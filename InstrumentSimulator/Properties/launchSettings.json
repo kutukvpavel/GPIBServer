@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "InstrumentSimulator": {
+      "commandName": "Project",
+      "commandLineArgs": "COM32"
+    }
+  }
+}

@@ -52,6 +52,7 @@ namespace GPIBServer
                 for (int i = 0; i < Threads.Length; i++)
                 {
                     var r = Threads[i];
+                    r.Cancel = src.Token;
                     ExecutingTasks[i] = new Task<bool>(() => r.Execute(controllers, instruments), src.Token);
                     r.ErrorOccured += (o, e) => RaiseError(o, e.Exception, $"{e.Data}, original thread = {r.Name}");
                 }
@@ -77,18 +78,27 @@ namespace GPIBServer
                 RaiseError(this, ex, "Can't start all threads.");
                 return false;
             }
+            bool success = true;
             while (ExecutingTasks.Any(x => !x.IsCompleted))
             {
+                if (src.IsCancellationRequested)
+                {
+                    Thread.Sleep(10);
+                    continue;
+                }
                 try
                 {
-                    int i = Task.WaitAny(ExecutingTasks);
+                    int i = Task.WaitAny(ExecutingTasks, src.Token);
                     var t = ExecutingTasks[i];
                     if (!t.IsCompletedSuccessfully || !t.Result)
                     {
+                        success = false;
                         if (t.Exception != null) RaiseError(this, t.Exception, $"Thread = {Threads[i].Name}.");
                         if (TerminateAllThreadsOnError && !t.IsCanceled) src.Cancel();
                     }
                 }
+                catch (OperationCanceledException)
+                { }
                 catch (Exception ex)
                 {
                     RaiseError(this, ex, "Error during waiting for all threads.");
@@ -106,7 +116,7 @@ namespace GPIBServer
                 catch (Exception)
                 { }
             }
-            return true;
+            return success;
         }
 
         public IEnumerable<string> GetRequiredControllerNames()

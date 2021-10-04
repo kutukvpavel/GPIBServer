@@ -4,7 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
-using System.Timers;
+using System.Threading;
+using System.Threading.Tasks;
+using Timer = System.Timers.Timer;
+using ElapsedEventArgs = System.Timers.ElapsedEventArgs;
 
 namespace GPIBServer
 {
@@ -76,8 +79,11 @@ namespace GPIBServer
                     SerialPort.ErrorReceived -= SerialPort_ErrorReceived;
                 }
                 SerialPort = new SerialPortStream(PortConfiguration.Name,
-                    PortConfiguration.BaudRate, PortConfiguration.DataBits, 
-                    PortConfiguration.Parity, PortConfiguration.StopBits);
+                    PortConfiguration.BaudRate, PortConfiguration.DataBits,
+                    PortConfiguration.Parity, PortConfiguration.StopBits)
+                {
+                    WriteTimeout = PortConfiguration.SendTimeout
+                };
                 SerialPort.ErrorReceived += SerialPort_ErrorReceived;
                 SerialPort.DataReceived += SerialPort_DataReceived;
                 SerialPort.Open();
@@ -101,11 +107,18 @@ namespace GPIBServer
                     _ResponseTimer.Interval = cmd.TimeoutMilliseconds;
                     LastCommand = cmd;
                     LastResponse = null;
-                    SerialPort.Write(c);
-                    if (cmd.CommandString.Length * 2 < SerialPort.WriteBufferSize) SerialPort.Flush();
+                    try
+                    {
+                        SerialPort.Write(c);
+                        if (cmd.CommandString.Length * 2 < SerialPort.WriteBufferSize) SerialPort.Flush();
+                    }
+                    catch (TimeoutException)
+                    {
+                        return false;
+                    }
                     if (cmd.AwaitResponse) _ResponseTimer.Start();
                 }
-                LogTerminal?.BeginInvoke(this, c, null, null);
+                Task.Run(() => LogTerminal?.Invoke(this, cmd.CommandString));
                 return true;
             }
             catch (Exception ex)
@@ -115,21 +128,23 @@ namespace GPIBServer
             }
         }
 
-        public bool SelectInstrument(GpibInstrument instrument)
+        public bool SelectInstrument(GpibInstrument instrument, CancellationToken? token, out bool performed)
         {
+            performed = false;
             try
             {
                 if (SendReturnHelper()) return false;
                 if ((LastInstrument?.Address ?? -1) == instrument.Address) return true;
+                performed = true;
                 string addr = instrument.Address.ToString();
                 var selCmd = this[AddressSelectCommandName].PutInParameters(addr);
                 if (!Send(selCmd)) return false;
-                Wait();
+                Wait(token);
                 if ((AddressQueryCommandName?.Length ?? 0) > 0)
                 {
                     selCmd = this[AddressQueryCommandName].PutInParameters(addr);
                     if (!Send(selCmd)) return false;
-                    Wait();
+                    Wait(token);
                 }
                 if (LastCommand.ExpectedResponse == null || LastResponse == LastCommand.ExpectedResponse)
                 {
@@ -147,6 +162,10 @@ namespace GPIBServer
                 return false;
             }
         }
+        public bool SelectInstrument(GpibInstrument instrument, CancellationToken? token)
+        {
+            return SelectInstrument(instrument, token, out _);
+        }
 
         public void Dispose()
         {
@@ -158,9 +177,9 @@ namespace GPIBServer
             }
         }
 
-        public void Wait()
+        public void Wait(CancellationToken? token)
         {
-            while (IsBusy) System.Threading.Thread.Sleep(ControllerPollInterval);
+            while (IsBusy && !(token?.IsCancellationRequested ?? false)) Thread.Sleep(ControllerPollInterval);
         }
 
         #endregion
@@ -206,7 +225,7 @@ namespace GPIBServer
                 lock (SynchronizingObject)
                 {
                     string newData = SerialPort.ReadExisting();
-                    LogTerminal?.BeginInvoke(this, newData, null, null);
+                    Task.Run(() => LogTerminal?.Invoke(this, newData));
                     _ResponseBuilder.Append(newData);
                     if (newData.EndsWith(EndOfReceive))
                     {
@@ -216,8 +235,8 @@ namespace GPIBServer
                         _ResponseBuilder.Clear();
                         resp = ParseResponse(resp);
                         LastResponse = resp;                                        //TODO: RECHECK!!
-                        ResponseReceived?.BeginInvoke(this, 
-                            new GpibResponseEventArgs(LastCommand, LastInstrument, resp), null, null);
+                        Task.Run(() => ResponseReceived?.Invoke(this, 
+                            new GpibResponseEventArgs(LastCommand, LastInstrument, resp)));
                     }
                 }
             }

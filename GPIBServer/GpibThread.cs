@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using System.Threading;
 
 namespace GPIBServer
 {
@@ -12,11 +14,14 @@ namespace GPIBServer
 
         public string[] Commands { get; set; } = new string[0];
         public string Name { get; set; } = "Example";
-        public int TimeoutRetry { get; set; } = 1000;
+        public int TimeoutRetry { get; set; } = 3;
         public int LoopIndex { get; set; } = 0;
         public int LoopCount { get; set; } = 1;
         public int DefaultCommandInterval { get; set; } = 1000;
         public int StartDelay { get; set; } = 1000;
+
+        [JsonIgnore]
+        public CancellationToken? Cancel { get; set; }
 
         #endregion
 
@@ -26,17 +31,17 @@ namespace GPIBServer
         {
             int loop = LoopCount;
             bool initialized = false;
-            while (loop < 0 || loop-- > 0)
+            while ((loop < 0 || loop-- > 0) && !(Cancel?.IsCancellationRequested ?? false))
             {
                 int i;
-                for (i = initialized ? LoopIndex : 0; i < Commands.Length; i++)
+                for (i = initialized ? LoopIndex : 0; (i < Commands.Length) && !(Cancel?.IsCancellationRequested ?? false); i++)
                 {
                     string item = Commands[i];
                     try
                     {
                         if (item.StartsWith(GpibScript.DelayCommandPrefix))
                         {
-                            System.Threading.Thread.Sleep(int.Parse(item.Remove(0, GpibScript.DelayCommandPrefix.Length)));
+                            Thread.Sleep(int.Parse(item.Remove(0, GpibScript.DelayCommandPrefix.Length)));
                         }
                         else
                         {
@@ -48,7 +53,7 @@ namespace GPIBServer
                         RaiseError(this, ex, item);
                         return false;
                     }
-                    System.Threading.Thread.Sleep(DefaultCommandInterval);
+                    Thread.Sleep(DefaultCommandInterval);
                 }
                 if (i != Commands.Length) return false;
                 initialized = true;
@@ -67,15 +72,15 @@ namespace GPIBServer
                 out GpibController ctrl, out GpibInstrument instr, out GpibCommand cmd);
             if (res == null) return true;
             int retry = TimeoutRetry;
-            while (retry-- > 0)
+            while ((retry-- > 0) && !(Cancel?.IsCancellationRequested ?? false))
             {
                 if (res.Value)
                 {
-                    if (!ctrl.SelectInstrument(instr)) continue;
-                    ctrl.Wait();
+                    if (!ctrl.SelectInstrument(instr, Cancel, out bool delay)) continue;
+                    if (delay) Thread.Sleep(DefaultCommandInterval);
                 }
                 if (!ctrl.Send(cmd)) continue;
-                ctrl.Wait();
+                ctrl.Wait(Cancel);
                 return true;
             }
             return false;

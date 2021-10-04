@@ -14,13 +14,14 @@ namespace GPIBServer
         InstrumentName
     }
 
-    public static class Output //TODO: Use blocking queue to avoid reentrancy issues
+    public static partial class Output
     {
         public static event EventHandler<ExceptionEventArgs> ErrorOccurred;
 
         #region Properties
 
-        public static string Path { get; set; }
+        public static string TerminalLogPath { get; private set; }
+        public static string DataPath { get; private set; }
         public static string LineFormat { get; set; }
         public static OutputSeparation Separation { get; set; }
         public static string SeparationLabelFormat { get; set; }
@@ -31,112 +32,124 @@ namespace GPIBServer
 
         #region Public Methods
 
-        public static void Initialize(CancellationToken cancel)
+        public static void Dispose()
         {
-            _Cancel = cancel;
+            foreach (var item in _DataWriters)
+            {
+                try
+                {
+                    item.Value.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    ErrorOccurred.Invoke(null, new ExceptionEventArgs(ex));
+                }
+            }
+            foreach (var item in _TerminalWriters)
+            {
+                try
+                {
+                    item.Value.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    ErrorOccurred.Invoke(null, new ExceptionEventArgs(ex));
+                }
+            }
         }
 
-        public static void QueueForWrite(object sender, GpibResponseEventArgs e)
+        public static void Initialize(string dataPath, string terminalPath, CancellationToken cancel)
+        {
+            _Cancel = cancel;
+            TerminalLogPath = terminalPath;
+            DataPath = dataPath;
+        }
+
+        public static void QueueData(object sender, GpibResponseEventArgs e)
         {
             if (!e.Command.OutputResponse) return;
-            if (_Cancel == null) throw new InvalidOperationException("Output module not initialized.");
+            CheckInitialization();
             string p = Separation switch
             {
                 OutputSeparation.None => string.Empty,
                 OutputSeparation.InstrumentType => string.Format(SeparationLabelFormat, e.Instrument.Type),
                 OutputSeparation.InstrumentModel => string.Format(SeparationLabelFormat, e.Instrument.CommandSetName),
                 OutputSeparation.InstrumentName => string.Format(SeparationLabelFormat, e.Instrument.Name),
-                _ => throw new ArgumentOutOfRangeException("Output separation value is out of range."),
+                _ => throw new ArgumentOutOfRangeException("Output separation value is out of range.")
             };
-            p = string.Format(Path, p);
-            if (!_Writers.ContainsKey(p))
+            p = string.Format(DataPath, p);
+            if (!_DataWriters.ContainsKey(p))
             {
-                _Writers.Add(p, new WriterThread(p, _Cancel));
+                lock (_DataWriters)
+                {
+                    var t = new DataWriterThread(p, _Cancel);
+                    _DataWriters.TryAdd(p, t);
+                }
             }
-            _Writers[p].Queue(sender, e);
+            _DataWriters[p].Queue(new Tuple<object, GpibResponseEventArgs>(sender, e));
+        }
+
+        public static void QueueTerminal(object sender, string data)
+        {
+            CheckInitialization();
+            string p = string.Format(TerminalLogPath, (sender as GpibController).Name);
+            try
+            {
+                if (!_TerminalWriters.ContainsKey(p))
+                {
+                    lock (_TerminalWriters)
+                    {
+                        var t = new TerminalWriterThread(p, _Cancel);
+                        _TerminalWriters.TryAdd(p, t);
+                    }
+                }
+            }
+            catch (IOException)
+            {
+
+            }
+            _TerminalWriters[p].Queue(data);
         }
 
         #endregion
 
         #region Private
 
-        private static readonly Dictionary<string, WriterThread> _Writers = new Dictionary<string, WriterThread>();
+        private static readonly ConcurrentDictionary<string, DataWriterThread> _DataWriters
+            = new ConcurrentDictionary<string, DataWriterThread>();
+        private static readonly ConcurrentDictionary<string, TerminalWriterThread> _TerminalWriters
+            = new ConcurrentDictionary<string, TerminalWriterThread>();
 
         private static CancellationToken _Cancel;
 
-        private class WriterThread : IDisposable
+        private static void CheckInitialization()
         {
-            public WriterThread(string path, CancellationToken token)
+            if (_Cancel == null) throw new InvalidOperationException("Output module not initialized.");
+        }
+
+        private class DataWriterThread : WriterThreadBase<Tuple<object, GpibResponseEventArgs>>
+        {
+            public DataWriterThread(string path, CancellationToken token) : base(path, token)
+            { }
+
+            protected override string ConvertData(Tuple<object, GpibResponseEventArgs> data)
             {
-                Path = path;
-                string dir = System.IO.Path.GetDirectoryName(Path);
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                _Writer = File.AppendText(Path);
-                _Collection = new BlockingCollection<Tuple<object, GpibResponseEventArgs>>();
-                _Source = new CancellationTokenSource();
-                token.Register(() => _Source.Cancel());
-                _Thread = new Thread(Process);
-                _Thread.Start();
+                return string.Format(LineFormat,
+                    (data.Item1 as GpibController).Name, data.Item2.Instrument.Name, data.Item2.Command.CommandString,
+                    data.Item2.Response);
+            }
+        }
+
+        private class TerminalWriterThread : WriterThreadBase<string>
+        {
+            public TerminalWriterThread(string path, CancellationToken token) : base(path, token)
+            {
+                WriteToConsole = true;
             }
 
-            public string Path { get; }
-
-            public void Queue(object sender, GpibResponseEventArgs e)
+            protected override string ConvertData(string data)
             {
-                _Collection.Add(new Tuple<object, GpibResponseEventArgs>(sender, e));
-            }
-
-            public void Dispose()
-            {
-                if (!_Source.IsCancellationRequested) _Source.Cancel();
-                if (_Thread.IsAlive) _Thread.Join();
-                _Writer.Close();
-                _Writer.Dispose();
-                _Source.Dispose();
-            }
-
-            private readonly TextWriter _Writer;
-            private readonly BlockingCollection<Tuple<object, GpibResponseEventArgs>> _Collection;
-            private readonly Thread _Thread;
-            private readonly CancellationTokenSource _Source;
-
-            private void Process()
-            {
-                while (!_Source.Token.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var t = _Collection.Take(_Source.Token);
-                        Write(t.Item1, t.Item2);
-                    }
-                    catch (OperationCanceledException)
-                    { }
-                    catch (Exception ex)
-                    {
-                        ErrorOccurred?.BeginInvoke(null, new ExceptionEventArgs(ex, Path), null, null);
-                    }
-                }
-            }
-
-            private void Write(object sender, GpibResponseEventArgs e)
-            {
-                int retry = Retries;
-                IOException lastIoExc = null;
-                string line = string.Format(LineFormat,
-                            (sender as GpibController).Name, e.Instrument.Name, e.Command.CommandString, e.Response);
-                while (retry-- > 0)
-                {
-                    try
-                    {
-                        _Writer.WriteLine(line);
-                    }
-                    catch (IOException ex)
-                    {
-                        lastIoExc = ex;
-                    }
-                    Thread.Sleep(RetryDelayMilliseconds);
-                }
-                if (retry < 0) ErrorOccurred?.BeginInvoke(null, new ExceptionEventArgs(lastIoExc, Path), null, null);
+                return data;
             }
         }
 

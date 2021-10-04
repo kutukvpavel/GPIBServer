@@ -1,5 +1,4 @@
-﻿using RJCP.IO.Ports;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -37,6 +36,7 @@ namespace GPIBServer
                 string name = Assembly.GetExecutingAssembly().GetName().ToString();
                 Logger.Write(name);
                 ExitCodes ret = (args.Length > 0 && args[0] == "-g") ? GenerateExampleJson() : MainHelper(args);
+                Console.WriteLine("Saving configuration...");
                 try
                 {
                     if (ret == ExitCodes.OK) Configuration.SaveConfiguration(Configuration.Instance);
@@ -46,6 +46,7 @@ namespace GPIBServer
                     Logger.Fatal(ex);
                     ret = ExitCodes.FailedToSaveConfiguration;
                 }
+                Console.WriteLine("Exiting.");
                 return (int)ret;
             }
             catch (Exception ex)
@@ -55,7 +56,13 @@ namespace GPIBServer
             }
             finally
             {
-                if (!Cancel.IsCancellationRequested) Cancel.Cancel();
+                try
+                {
+                    if (!Cancel.IsCancellationRequested) Cancel.Cancel();
+                    Output.Dispose();
+                }
+                catch (Exception)
+                { }
             }
         }
 
@@ -84,6 +91,7 @@ namespace GPIBServer
         private static ExitCodes MainHelper(string[] args)
         {
             //Load settings
+            Console.WriteLine("Loading configuration...");
             try
             {
                 Configuration.LoadConfiguration();
@@ -93,7 +101,6 @@ namespace GPIBServer
                 GpibScript.DelayCommandPrefix = Configuration.Instance.DelayCommandPrefix;
                 GpibController.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
                 Output.Separation = Configuration.Instance.OutputSeparation;
-                Output.Path = Configuration.Instance.GetFullyQualifiedOutputPath();
                 Output.LineFormat = Configuration.Instance.OutputLineFormat;
                 Output.SeparationLabelFormat = Configuration.Instance.OutputSeparationLabelFormat;
                 Output.Retries = Configuration.Instance.OutputRetries;
@@ -122,16 +129,18 @@ namespace GPIBServer
                 return ExitCodes.FailedToDeserializeObjects;
             }
             //Initialize objects
+            Console.WriteLine("Initializing objects...");
             try
             {
-                Logger.InitializeTerminal(Cancel.Token);
                 if (!Script.ValidateNames())
                 {
                     Logger.Write("Invalid script (probably duplicate thread names).");
                     return ExitCodes.InvalidScript;
                 }
                 Output.ErrorOccurred += ErrorMessageSink;
-                Output.Initialize(Cancel.Token);
+                Output.Initialize(Configuration.Instance.GetFullyQualifiedOutputPath(),
+                    Configuration.Instance.GetFullyQualifiedLogPath(),
+                    Cancel.Token);
                 Script.ErrorOccured += ErrorMessageSink;
                 Serializer.ErrorOccured += ErrorMessageSink;
                 foreach (var item in Instruments)
@@ -144,8 +153,9 @@ namespace GPIBServer
                     item.Value.Initialize();
                     item.Value.InitializeCommandSet();
                     item.Value.ErrorOccured += ErrorMessageSink;
-                    item.Value.ResponseReceived += Output.QueueForWrite;
-                    //item.Value.LogTerminal += Logger.Terminal;
+                    item.Value.ResponseReceived += Output.QueueData;
+                    item.Value.LogTerminal += Output.QueueTerminal;
+                    item.Value.CommandTimeout += Controller_CommandTimeout;
                 }
             }
             catch (Exception ex)
@@ -154,6 +164,7 @@ namespace GPIBServer
                 return ExitCodes.FailedToInitializeObjects;
             }
             //Connect to required controllers
+            Console.WriteLine("Connecting to controllers...");
             try
             {
                 foreach (var item in Script.GetRequiredControllerNames())
@@ -167,6 +178,7 @@ namespace GPIBServer
                 return ExitCodes.FailedToConnectToControllers;
             }
             //Execute script
+            Console.WriteLine("Executing script...");
             try
             {
                 if (!Script.Execute(Controllers, Instruments, Cancel.Token))
@@ -178,6 +190,13 @@ namespace GPIBServer
                 return ExitCodes.FailedToExecuteScript;
             }
             return ExitCodes.OK;
+        }
+
+        private static void Controller_CommandTimeout(object sender, GpibCommandEventArgs e)
+        {
+            Logger.Write(
+                $"Command timeout: {(sender as GpibController).Name} -> {e.Instrument.Name} -> '{e.Command.CommandString}'."
+                );
         }
 
         private static void ErrorMessageSink(object sender, ExceptionEventArgs e)

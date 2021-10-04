@@ -9,5 +9,6 @@ namespace GPIBServer
         public int DataBits { get; set; } = 8;
         public Parity Parity { get; set; } = Parity.None;
         public StopBits StopBits { get; set; } = StopBits.One;
+        public int SendTimeout { get; set; } = 3000;
     }
 }

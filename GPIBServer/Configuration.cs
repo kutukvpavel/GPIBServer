@@ -22,7 +22,7 @@ namespace GPIBServer
             ScriptDevicePathDelimeter = ".";
             ControllerPollInterval = 10;
             DelayCommandPrefix = "delay=";
-            OutputLineFormat = "{0} | {1} | {2}";
+            OutputLineFormat = "{0} | {1} | {2} | {3}";
             OutputSeparation = OutputSeparation.None;
             OutputSeparationLabelFormat = "{0}_";
             OutputRetries = 3;
@@ -46,6 +46,12 @@ namespace GPIBServer
         public int OutputRetries { get; set; }
         public int OutputRetryDelayMilliseconds { get; set; }
 
+        public string GetFullyQualifiedLogPath()
+        {
+            string path = Path.Combine(Environment.CurrentDirectory, "logs");
+            if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+            return Path.Combine(path, $@"terminal_{{0}}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.log");
+        }
         public string GetFullyQualifiedOutputPath()
         {
             return GetFullyQualifiedPath(string.Format(OutputFilePath, DateTime.Now));
