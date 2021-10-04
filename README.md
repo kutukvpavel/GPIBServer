@@ -17,4 +17,5 @@ It's much more limited than, for example, EZGPIB, however it's open-source and (
 # Quick Start
  - Run the application with option "-g". This will generate example configuration files (inside thw working directory) from which you can infer their structure.
  - Edit the configuration files to match your setup and task. You can verify that a correct sequence of commands is produced with the instrument(s) OFF and all script commands (temporarily) set to "AwaitResponse = false". The commands sent will be visible in the console.
+ - You can perform a more extensive behavior validation using InstrumentSimulator project. It contains an almost barebones implementation of a JSON-serialized GPIB controller/instrument simulator that can be customized to fit your particular needs. Out-of-the-box it offers only a simple string reply dictionary and address matching.
  - Try it with a real connected instrument.
