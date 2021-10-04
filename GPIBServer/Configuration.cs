@@ -13,7 +13,7 @@ namespace GPIBServer
             if (!init) return;
             ScriptsFolder = @"..\scripts";
             ScriptsFilter = "*.json";
-            OutputFilePath = @"..\output\{{0}}{0:yyyy-MM-dd_HH-mm-ss}.txt";
+            OutputFilePath = @"..\output\{{0}}{0:yyyy-MM-dd_HH-mm-ss}.csv";
             InstrumentsFolder = @"..\instruments";
             InstrumentsFilter = "*.json";
             ControllersFolder = @"..\controllers";
@@ -22,8 +22,8 @@ namespace GPIBServer
             ScriptDevicePathDelimeter = ".";
             ControllerPollInterval = 10;
             DelayCommandPrefix = "delay=";
-            OutputLineFormat = "{0} | {1} | {2} | {3}";
-            OutputSeparation = OutputSeparation.None;
+            OutputLineFormat = "{0:yyyy-MM-dd HH:mm:ss};{1};{2};{3};{4}";
+            OutputSeparation = OutputSeparation.InstrumentName;
             OutputSeparationLabelFormat = "{0}_";
             OutputRetries = 3;
             OutputRetryDelayMilliseconds = 300;

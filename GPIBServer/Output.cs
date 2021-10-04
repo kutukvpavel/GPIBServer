@@ -134,7 +134,7 @@ namespace GPIBServer
 
             protected override string ConvertData(Tuple<object, GpibResponseEventArgs> data)
             {
-                return string.Format(LineFormat,
+                return string.Format(LineFormat, data.Item2.TimeReceived,
                     (data.Item1 as GpibController).Name, data.Item2.Instrument.Name, data.Item2.Command.CommandString,
                     data.Item2.Response);
             }
