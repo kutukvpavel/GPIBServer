@@ -7,7 +7,8 @@ It's much more limited than, for example, EZGPIB, however it's open-source and (
  - Parallel execution of multiple scripts;
  - Multiple controller (with multiple addressable instruments) support;
  - Configurable data output (as formatted text files and/or through a named pipe);
- - JSON-serialized controller and instrument databases.
+ - JSON-serialized controller and instrument databases;
+ - Simple controller/instrument simulator project available to assist debugging.
  
 # Limitations
  - No branching or jumps in the script are supported (intentional choise to keep things simple, conditional branch and jump implementstion would require a complete rewrite of script execution logic and probably a storage format reevaluation);
