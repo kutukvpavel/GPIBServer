@@ -1,6 +1,6 @@
 # GPIBServer [Work in progress]
 There's a decent OSS USB-GPIB controller [AR488 by Twilight Logic](https://github.com/Twilight-Logic/AR488). However currently there's no OSS available to acomplish some basic automated data acquisition through GPIB. That's why I opted to write my own 'General purpose GPIB data collection server'.
-It's much more limited than, for example, EZGPIB, however it's open-source and (should be) cross-platform thanks to .NET Core 3.1 and SerialPortStream IO library.
+It's much more limited than, for example, EZGPIB, however it's open-source and (should be) cross-platform thanks to .NET Core 3.1 and [SerialPortStream](https://github.com/jcurl/SerialPortStream) IO library.
 
 # Features
  - Simple command script execution;
