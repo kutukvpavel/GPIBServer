@@ -1,6 +1,6 @@
 # GPIBServer [Work in progress]
 There's a decent OSS USB-GPIB controller [AR488 by Twilight Logic](https://github.com/Twilight-Logic/AR488). However currently there's no OSS available to acomplish some basic automated data acquisition through GPIB. That's why I opted to write my own 'General purpose GPIB data collection server'.
-It's much more limited than, for example, EZGPIB, however it's open-source and (should be) cross-platform thanks to .NET Core 3.1 and [SerialPortStream](https://github.com/jcurl/SerialPortStream) IO library.
+It's much more limited than, for example, EZGPIB, however it's open-source and (should be) cross-platform thanks to .NET Core 3.1 and [SerialPortStream](https://github.com/jcurl/SerialPortStream) IO library. It also doesn't have the annoying quirks of EZGPIB that made it unusable for me, namely: unavoidable "probing" of all serial ports during startup that not only disturbes some of my hardware that can't be disturbed, but also fails to detect AR488 due to Arduino's DTR reset behavior. The last one could be fixed by either modification of the Arduino (that results in inability to hardware reset the device and complicates it's reflashing process) or editing EZGPIB executable, but all of this makes learning how to use EZGPIB unfeasible altogether.
 
 # Features
  - Simple command script execution;
