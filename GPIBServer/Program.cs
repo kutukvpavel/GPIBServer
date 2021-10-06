@@ -81,10 +81,12 @@ namespace GPIBServer
             };
             var ics = new GpibInstrumentCommandSet() { CommandSet = ctrl.CommandSet };
             var sc = new GpibScript() { Threads = new GpibThread[] { new GpibThread() } };
-            string p = Path.Combine(Environment.CurrentDirectory, "example_{0}.json");
-            Serializer.Serialize(ctrl, string.Format(p, "controller"));
-            Serializer.Serialize(ics, string.Format(p, "instrument"));
-            Serializer.Serialize(sc, string.Format(p, "script"));
+            Serializer.Serialize(ctrl, Path.Combine(
+                Environment.CurrentDirectory, Configuration.Instance.ControllersFolder, "controller.json"));
+            Serializer.Serialize(ics, Path.Combine(
+                Environment.CurrentDirectory, Configuration.Instance.ControllersFolder, "instrument.json"));
+            Serializer.Serialize(sc, Path.Combine(
+                Environment.CurrentDirectory, Configuration.Instance.ControllersFolder, "script.json"));
             return ExitCodes.OK;
         }
 
@@ -105,6 +107,7 @@ namespace GPIBServer
                 Output.SeparationLabelFormat = Configuration.Instance.OutputSeparationLabelFormat;
                 Output.Retries = Configuration.Instance.OutputRetries;
                 Output.RetryDelayMilliseconds = Configuration.Instance.OutputRetryDelayMilliseconds;
+                Output.FlushEachLine = Configuration.Instance.FlushEachOutputLineImmediately;
             }
             catch (Exception ex)
             {

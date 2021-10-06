@@ -11,12 +11,12 @@ namespace GPIBServer
         public Configuration(bool init)
         {
             if (!init) return;
-            ScriptsFolder = @"..\scripts";
+            ScriptsFolder = @".\scripts";
             ScriptsFilter = "*.json";
-            OutputFilePath = @"..\output\{{0}}{0:yyyy-MM-dd_HH-mm-ss}.csv";
-            InstrumentsFolder = @"..\instruments";
+            OutputFilePath = @".\output\{{0}}{0:yyyy-MM-dd_HH-mm-ss}.csv";
+            InstrumentsFolder = @".\instruments";
             InstrumentsFilter = "*.json";
-            ControllersFolder = @"..\controllers";
+            ControllersFolder = @".\controllers";
             ControllersFilter = "*.json";
             ScriptName = "ExampleScript";
             ScriptDevicePathDelimeter = ".";
@@ -28,6 +28,7 @@ namespace GPIBServer
             OutputRetries = 3;
             OutputRetryDelayMilliseconds = 300;
             PipeName = "GPIBServer_Broadcast_Pipe";
+            FlushEachOutputLineImmediately = true;
         }
 
         public string ScriptsFilter { get; set; }
@@ -47,6 +48,7 @@ namespace GPIBServer
         public int OutputRetries { get; set; }
         public int OutputRetryDelayMilliseconds { get; set; }
         public string PipeName { get; set; }
+        public bool FlushEachOutputLineImmediately { get; set; }
 
         public string GetFullyQualifiedLogPath()
         {

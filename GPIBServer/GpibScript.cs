@@ -116,7 +116,7 @@ namespace GPIBServer
                 catch (Exception)
                 { }
             }
-            return success;
+            return success && !src.IsCancellationRequested;
         }
 
         public IEnumerable<string> GetRequiredControllerNames()

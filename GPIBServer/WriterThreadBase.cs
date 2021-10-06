@@ -8,6 +8,8 @@ namespace GPIBServer
 {
     public static partial class Output
     {
+        public static bool FlushEachLine { get; set; }
+
         private abstract class WriterThreadBase<T> : IDisposable
         {
             public WriterThreadBase(string path, CancellationToken token)
@@ -75,6 +77,7 @@ namespace GPIBServer
                     try
                     {
                         _Writer.WriteLine(line);
+                        if (FlushEachLine) _Writer.Flush();
                         break;
                     }
                     catch (IOException ex)

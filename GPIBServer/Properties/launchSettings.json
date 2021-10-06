@@ -1,8 +1,7 @@
 {
   "profiles": {
     "GPIBServer": {
-      "commandName": "Project",
-      "commandLineArgs": "ExampleScript"
+      "commandName": "Project"
     }
   }
 }
