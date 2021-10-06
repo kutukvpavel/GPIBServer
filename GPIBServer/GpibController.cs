@@ -31,6 +31,7 @@ namespace GPIBServer
 
         public string Name { get; set; } = "Example";
         public string EndOfReceive { get; set; } = "\r\n";
+        public bool PermissiveEndOfReceive { get; set; } = true;
         public string EndOfSend { get; set; } = "\r\n";
         public string AddressSelectCommandName { get; set; } = "select";
         public string AddressQueryCommandName { get; set; } = "query";
@@ -38,7 +39,7 @@ namespace GPIBServer
         public GpibInstrument[] InstrumentSet { get; set; }
 
         [JsonIgnore]
-        public string LastResponse { get; private set; }
+        public GpibResponseEventArgs LastResponse { get; private set; }
         [JsonIgnore]
         public SerialPortStream SerialPort { get; private set; }
         [JsonIgnore]
@@ -57,6 +58,7 @@ namespace GPIBServer
         public void Initialize()
         {
             _Instruments = InstrumentSet.ToDictionary(x => x.Name);
+            if (PermissiveEndOfReceive) _Trim = EndOfReceive.ToCharArray();
         }
 
         public GpibInstrument GetInstrument(string name)
@@ -146,7 +148,7 @@ namespace GPIBServer
                     if (!Send(selCmd)) return false;
                     Wait(token);
                 }
-                if (LastCommand.ExpectedResponse == null || LastResponse == LastCommand.ExpectedResponse)
+                if (LastCommand.ExpectedResponse == null || LastResponse.Response == LastCommand.ExpectedResponse)
                 {
                     LastInstrument = instrument;
                     return true;
@@ -189,6 +191,7 @@ namespace GPIBServer
         private readonly Timer _ResponseTimer;
         private readonly StringBuilder _ResponseBuilder;
         private Dictionary<string, GpibInstrument> _Instruments;
+        private char[] _Trim;
 
         private bool SendReturnHelper()
         {
@@ -227,16 +230,21 @@ namespace GPIBServer
                     string newData = SerialPort.ReadExisting();
                     Task.Run(() => LogTerminal?.Invoke(this, newData));
                     _ResponseBuilder.Append(newData);
-                    if (newData.EndsWith(EndOfReceive))
+                    if (PermissiveEndOfReceive ? 
+                        newData.EndsWith(EndOfReceive[EndOfReceive.Length - 1]) :
+                        newData.EndsWith(EndOfReceive))
                     {
                         _ResponseTimer.Stop();
-                        string resp = _ResponseBuilder.ToString()
-                            .Remove(_ResponseBuilder.Length - EndOfReceive.Length, EndOfReceive.Length);
+                        string resp = _ResponseBuilder.ToString();
+                        resp = PermissiveEndOfReceive ?
+                            resp.TrimEnd(_Trim) :
+                            resp.Remove(_ResponseBuilder.Length - EndOfReceive.Length, EndOfReceive.Length);
                         _ResponseBuilder.Clear();
+                        if (LastCommand == null) return;
                         resp = ParseResponse(resp);
-                        LastResponse = resp;                                        //TODO: RECHECK!!
-                        Task.Run(() => ResponseReceived?.Invoke(this, 
-                            new GpibResponseEventArgs(LastCommand, LastInstrument, resp)));
+                        LastResponse = new GpibResponseEventArgs(LastCommand, LastInstrument, resp);
+                        LastCommand = null;                                        //TODO: RECHECK!!
+                        Task.Run(() => ResponseReceived?.Invoke(this, LastResponse));
                     }
                 }
             }
