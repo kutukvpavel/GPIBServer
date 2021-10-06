@@ -4,7 +4,7 @@ It's much more limited than, for example, EZGPIB, however it's open-source and (
 
 # Features
  - Simple command script execution;
- - Parallel execution of multiple scripts;
+ - Parallel execution of multiple scripts (note to self: only useful when multiple controllers are present, otherwise a deadlock is pretty much guaranteed);
  - Multiple controller (with multiple addressable instruments) support;
  - Configurable data output (as formatted text files and/or through a named pipe);
  - JSON-serialized controller and instrument databases;
