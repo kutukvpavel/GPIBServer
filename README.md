@@ -11,7 +11,7 @@ It's much more limited than, for example, EZGPIB, however it's open-source and (
  - Simple controller/instrument simulator project available to assist debugging.
  
 # Limitations
- - No branching or jumps in the script are supported (intentional choise to keep things simple, conditional branch and jump implementstion would require a complete rewrite of script execution logic and probably a storage format reevaluation);
+ - No branching or jumps in the script are supported (intentional choiсe to keep things simple, conditional branch and jump implementstion would require a complete rewrite of script execution logic and probably a storage format reevaluation);
  - Currently, all controllers are expected to be identified as serial ports (though this is not that hard to generalize, I just don't happed to have any non-serial-port controllers to work with);
  - This project is a work in progress. No extensive testing was done under any OS but Windows, though all the dependencies are cross-platform.
  
