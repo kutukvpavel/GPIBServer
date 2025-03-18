@@ -14,6 +14,7 @@ namespace GPIBServer
         public static string DevicePathDelimeter { get; set; }
         public static int ControllerPollInterval { get; set; }
         public static string DelayCommandPrefix { get; set; }
+        public static string VariablePrefix { get; set; }
 
         #endregion
 
@@ -124,7 +125,8 @@ namespace GPIBServer
             List<string> names = new List<string>();
             foreach (var item in Threads)
             {
-                names.AddRange(item.Commands.Select(x => x.Split(DevicePathDelimeter))
+                names.AddRange(item.Commands.Where(x => !(x.StartsWith(DelayCommandPrefix) || x.StartsWith(VariablePrefix)))
+                    .Select(x => x.Split(DevicePathDelimeter))
                     .Where(x => x.Length > 1).Select(x => x[0]));
             }
             return names.Distinct();

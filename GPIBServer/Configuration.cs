@@ -22,6 +22,7 @@ namespace GPIBServer
             ScriptDevicePathDelimeter = ".";
             ControllerPollInterval = 10;
             DelayCommandPrefix = "delay=";
+            VariablePrefix = "var:";
             OutputLineFormat = "{0:yyyy-MM-dd HH:mm:ss};{1};{2};{3};{4}";
             OutputSeparation = OutputSeparation.InstrumentName;
             OutputSeparationLabelFormat = "{0}_";
@@ -42,6 +43,7 @@ namespace GPIBServer
         public string ScriptDevicePathDelimeter { get; set; }
         public int ControllerPollInterval { get; set; } //mS
         public string DelayCommandPrefix { get; set; }
+        public string VariablePrefix { get; set; }
         public string OutputLineFormat { get; set; }
         public OutputSeparation OutputSeparation { get; set; }
         public string OutputSeparationLabelFormat { get; set; }

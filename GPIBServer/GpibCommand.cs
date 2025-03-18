@@ -1,4 +1,6 @@
-﻿namespace GPIBServer
+﻿using System.Globalization;
+
+namespace GPIBServer
 {
     public class GpibCommand
     {
@@ -36,7 +38,7 @@
         {
             var b = new GpibCommand(this);
             b.CommandString = string.Format(b.CommandString, pCmd);
-            if (b.ExpectedResponse != null) b.ExpectedResponse = string.Format(b.ExpectedResponse, pResp);
+            if (b.ExpectedResponse != null) b.ExpectedResponse = string.Format(CultureInfo.InvariantCulture, b.ExpectedResponse, pResp);
             return b;
         }
     }

@@ -101,6 +101,7 @@ namespace GPIBServer
                 GpibScript.DevicePathDelimeter = Configuration.Instance.ScriptDevicePathDelimeter;
                 GpibScript.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
                 GpibScript.DelayCommandPrefix = Configuration.Instance.DelayCommandPrefix;
+                GpibScript.VariablePrefix = Configuration.Instance.VariablePrefix;
                 GpibController.ControllerPollInterval = Configuration.Instance.ControllerPollInterval;
                 Output.Separation = Configuration.Instance.OutputSeparation;
                 Output.LineFormat = Configuration.Instance.OutputLineFormat;
