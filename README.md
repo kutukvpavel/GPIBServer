@@ -4,15 +4,15 @@ It's much more limited than, for example, EZGPIB, however it's open-source and (
 
 # Features
  - Simple command script execution;
- - Parallel execution of multiple scripts;
+ - Parallel execution of multiple scripts (note to self: only useful when multiple controllers are present, otherwise a deadlock is pretty much guaranteed);
  - Multiple controller (with multiple addressable instruments) support;
  - Configurable data output (as formatted text files and/or through a named pipe);
  - JSON-serialized controller and instrument databases;
  - Simple controller/instrument simulator project available to assist debugging.
  
 # Limitations
- - No branching or jumps in the script are supported (intentional choise to keep things simple, conditional branch and jump implementstion would require a complete rewrite of script execution logic and probably a storage format reevaluation);
- - Currently, all controllers are expected to be identified as serial ports (though this is not that hard to generalize, I just don't happed to have any non-serial-port controllers to work with);
+ - No branching or jumps in the script are supported (intentional choiсe to keep things simple, conditional branch and jump implementation would require a complete rewrite of script execution logic and probably a storage format reevaluation);
+ - Currently, all controllers are expected to be identified as serial ports (though this is not that hard to generalize, I just don't happen to have any non-serial-port controllers to work with);
  - This project is a work in progress. No extensive testing was done under any OS but Windows, though all the dependencies are cross-platform.
  
 # Quick Start
