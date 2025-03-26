@@ -30,6 +30,7 @@ namespace GPIBServer
             OutputRetryDelayMilliseconds = 300;
             PipeName = "GPIBServer_Broadcast_Pipe";
             FlushEachOutputLineImmediately = true;
+            PipeDatetimeFormat = "yyyy-MM-dd_HH-mm-ss";
         }
 
         public string ScriptsFilter { get; set; }
@@ -51,6 +52,7 @@ namespace GPIBServer
         public int OutputRetryDelayMilliseconds { get; set; }
         public string PipeName { get; set; }
         public bool FlushEachOutputLineImmediately { get; set; }
+        public string PipeDatetimeFormat { get; set; }
 
         public string GetFullyQualifiedLogPath()
         {

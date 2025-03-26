@@ -17,6 +17,15 @@ namespace GPIBServer
 
     public static partial class Output
     {
+        public class PipePacket
+        {
+            public string TimeReceived;
+            public string ControllerName;
+            public string InstrumentName;
+            public string Command;
+            public string Response;
+        }
+
         public static event EventHandler<ExceptionEventArgs> ErrorOccurred;
 
         #region Properties
@@ -74,7 +83,13 @@ namespace GPIBServer
                     while (!cancel.IsCancellationRequested)
                     {
                         var d = _PipeQueue.Take(cancel);
-                        _Pipe.PushMessage(DataConverter(d.Item1, d.Item2));
+                        _Pipe.PushMessage(Serializer.Serialize(new PipePacket() {
+                            ControllerName = (d.Item1 as GpibController).Name,
+                            TimeReceived = d.Item2.TimeReceived.ToString(Configuration.Instance.PipeDatetimeFormat),
+                            InstrumentName = d.Item2.Instrument.Name,
+                            Command = d.Item2.Command.CommandString,
+                            Response = d.Item2.Response
+                        }));
                     }
                 }
                 catch (OperationCanceledException)

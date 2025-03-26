@@ -40,6 +40,11 @@ namespace GPIBServer
             }
         }
 
+        public static string Serialize<T>(T obj)
+        {
+            return JsonSerializer.Serialize(obj, typeof(T), Options);
+        }
+
         private static void RaiseError(Exception ex, object data = null)
         {
             ErrorOccured?.Invoke("Serializer", new ExceptionEventArgs(ex, data));
