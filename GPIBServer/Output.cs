@@ -19,11 +19,11 @@ namespace GPIBServer
     {
         public class PipePacket
         {
-            public string TimeReceived;
-            public string ControllerName;
-            public string InstrumentName;
-            public string Command;
-            public string Response;
+            public string TimeReceived { get; set; }
+            public string ControllerName { get; set; }
+            public string InstrumentName { get; set; }
+            public string Command { get; set; }
+            public string Response { get; set; }
         }
 
         public static event EventHandler<ExceptionEventArgs> ErrorOccurred;
