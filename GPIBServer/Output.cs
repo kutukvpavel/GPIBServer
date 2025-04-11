@@ -163,7 +163,7 @@ namespace GPIBServer
         private static string DataConverter(object s, GpibResponseEventArgs e)
         {
             return string.Format(LineFormat, e.TimeReceived,
-                    (s as GpibController).Name, e.Instrument.Name, e.Command.CommandString, e.Response);
+                    (s as GpibController).Name, e.Instrument.Name, e.Command.CommandString, e.Response.Trim('\r', '\n'));
         }
 
         private static void CheckInitialization()
